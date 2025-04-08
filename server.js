@@ -1,12 +1,21 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const db = require('./database'); // Veritabanı bağlantısını import et
-const authRoutes = require('./routes/auth'); // Auth rotalarını import et (henüz oluşturulmadı)
-const categoryRoutes = require('./routes/categories'); // Kategori rotalarını import et (henüz oluşturulmadı)
-const menuItemRoutes = require('./routes/menuItems'); // Menü öğesi rotalarını import et (henüz oluşturulmadı)
-const publicRoutes = require('./routes/public'); // Public (müşteri) rotalarını import et (henüz oluşturulmadı)
-const qrCodeRoutes = require('./routes/qrcode'); // QR Kod rotalarını import et (henüz oluşturulmadı)
+
+// Vercel ortamında çalışıp çalışmadığımızı kontrol edelim
+const isVercel = process.env.VERCEL === '1';
+
+// Veritabanını sadece Vercel ortamında değilse yükleyelim
+let db = null;
+if (!isVercel) {
+  db = require('./database'); // Veritabanı bağlantısını import et
+}
+
+const authRoutes = require('./routes/auth'); // Auth rotalarını import et
+const categoryRoutes = require('./routes/categories'); // Kategori rotalarını import et
+const menuItemRoutes = require('./routes/menuItems'); // Menü öğesi rotalarını import et
+const publicRoutes = require('./routes/public'); // Public (müşteri) rotalarını import et
+const qrCodeRoutes = require('./routes/qrcode'); // QR Kod rotalarını import et
 
 // Express uygulama oluştur
 const app = express();
@@ -41,30 +50,42 @@ app.get('/api/check', (req, res) => {
     res.json({ status: 'success', message: 'QuickQR Menu Backend Çalışıyor!' });
 });
 
-// API Rotaları
-app.use('/api/auth', authRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/menu-items', menuItemRoutes);
-app.use('/api/public', publicRoutes);
-app.use('/api/qr', qrCodeRoutes);
+// Vercel'de özel mesaj
+app.get('/api/status', (req, res) => {
+    if (isVercel) {
+        res.json({ 
+            status: 'success', 
+            environment: 'vercel',
+            message: 'Vercel ortamında çalışıyor! Database bağlantısı engellendi.'
+        });
+    } else {
+        res.json({ 
+            status: 'success', 
+            environment: 'local',
+            message: 'Yerel ortamda çalışıyor, database bağlantısı aktif.'
+        });
+    }
+});
+
+// API Rotaları - Vercel ortamında mock yanıtlar dönelim
+if (isVercel) {
+    app.use('/api/auth', (req, res) => res.json({ message: "Auth API Vercel'de mock mod" }));
+    app.use('/api/categories', (req, res) => res.json({ message: "Categories API Vercel'de mock mod" }));
+    app.use('/api/menu-items', (req, res) => res.json({ message: "Menu Items API Vercel'de mock mod" }));
+    app.use('/api/public', (req, res) => res.json({ message: "Public API Vercel'de mock mod" }));
+    app.use('/api/qr', (req, res) => res.json({ message: "QR API Vercel'de mock mod" }));
+} else {
+    app.use('/api/auth', authRoutes);
+    app.use('/api/categories', categoryRoutes);
+    app.use('/api/menu-items', menuItemRoutes);
+    app.use('/api/public', publicRoutes);
+    app.use('/api/qr', qrCodeRoutes);
+}
 
 // Tüm diğer istekler için index.html servis et (SPA için)
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Sunucuyu Başlat
-app.listen(PORT, () => {
-    console.log(`Sunucu http://localhost:${PORT} adresinde çalışıyor.`);
-});
-
-// Veritabanı bağlantısını kapatma (uygulama kapanırken)
-process.on('SIGINT', () => {
-    db.close((err) => {
-        if (err) {
-            return console.error(err.message);
-        }
-        console.log('Veritabanı bağlantısı kapatıldı.');
-        process.exit(0);
-    });
-});
+// Vercel için export
+module.exports = app;
