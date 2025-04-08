@@ -31,9 +31,14 @@ const uploadsPath = path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadsPath));
 console.log('Server.js - Uploads dizini erişime açıldı:', uploadsPath);
 
-// Temel Rota
-app.get('/', (req, res) => {
-    res.send('QuickQR Menu Backend Çalışıyor!');
+// Static dosyaları servis et
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
+console.log('Server.js - Public dizini erişime açıldı:', publicPath);
+
+// Temel Rota - API çalıştığını kontrol etmek için
+app.get('/api/check', (req, res) => {
+    res.json({ status: 'success', message: 'QuickQR Menu Backend Çalışıyor!' });
 });
 
 // API Rotaları
@@ -43,6 +48,10 @@ app.use('/api/menu-items', menuItemRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/qr', qrCodeRoutes);
 
+// Tüm diğer istekler için index.html servis et (SPA için)
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // Sunucuyu Başlat
 app.listen(PORT, () => {
